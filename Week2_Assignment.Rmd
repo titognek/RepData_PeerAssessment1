@@ -1,0 +1,187 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: html_document
+keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Loading and preprocessing the data
+
+```{r loading and preprocessing}
+setwd("~/Documents/DataScienceCoursera/Course 5/WD/") # set working directory
+data <- read.csv("activity.csv") # read the data
+
+str(data) # check data stucture and if there are NAs
+data$date <- as.Date(data$date) # transform the date variable to class Date
+```
+
+### What is mean total number of steps taken per day?
+```{r histogram}
+stepsTotal <- as.data.frame(with(data, tapply(steps, date, sum, na.rm = TRUE))) # calculate the total number of steps for each day
+names(stepsTotal) <- "Total_steps" # change the name
+
+## 1. Make a histogram of the total number of steps taken each day
+hist(stepsTotal[,1], breaks = nrow(stepsTotal), col = "blue", main = "Total steps", xlab = "Number of steps per day") 
+
+## create the directory figures if it does not exist
+if (!file.exists("figures")){
+        dir.create("figures")
+}
+
+## save the plot as a separate file
+png(file="./figures/Histogram_total_steps.png")
+hist(stepsTotal[,1], breaks = nrow(stepsTotal), col = "blue", main = "Total steps", xlab = "Number of steps per day") # generate histogram 
+dev.off()
+
+
+## 2. Calculate and report the **mean** and **median** total number of steps taken per day
+stepsMean <- as.data.frame(with(data, tapply(steps, date, mean, na.rm = TRUE)))
+data2 <- data[data$steps>0,]
+stepsMedian <- as.data.frame(with(data2, tapply(steps, date, median, na.rm = TRUE)))
+
+par(mfrow = c(1,2), mar = c(2, 4, 2, 1))
+barplot(stepsMean[,1], main = "Total steps per day", ylab = "Mean")
+barplot(stepsMedian[,1], main = "Total steps per day", ylab = "Median")
+
+## save the plot as a separate file
+png(file="./figures/mean_median_total_steps.png")
+par(mfrow = c(1,2), mar = c(2, 4, 2, 1))
+barplot(stepsMean[,1], main = "Total steps per day", ylab = "Mean")
+barplot(stepsMedian[,1], main = "Total steps per day", ylab = "Median")
+dev.off()
+```
+
+### What is the average daily activity pattern?
+
+```{r}
+## 1. Make a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+meanAlldays <- as.data.frame(with(data, tapply(steps, interval, mean, na.rm = TRUE)))
+names(meanAlldays) <- "averageByInterval"
+plot(unique(data$interval), meanAlldays[,1], type = "l", ylab = "Average number of steps", xlab = "time series (5-minute interval)")
+
+## 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+maxInterval <- rownames(meanAlldays[which.max(meanAlldays[,1]),])
+
+## save the plot as a separate file
+png(file="./figures/average_daily_activity.png")
+plot(unique(data$interval), meanAlldays[,1], type = "l", ylab = "Average number of steps", xlab = "time series (5-minute interval)")
+dev.off()
+```
+
+The 5-minute interval that contains the maximum number of steps is 835.
+
+### Imputing missing values
+
+```{r}
+## 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+numberNA <- sum(is.na(data$steps)) 
+
+## 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+data$ID <- rownames(data) # change rownames
+meanAlldays$interval <- rownames(meanAlldays) # change rownames
+missing <- data[is.na(data$steps),] # find the rows with missing values
+fillMissing <- merge(meanAlldays, missing, by ="interval") # add the mean values per interval to each missing rows by merging
+tmp <- merge(data, fillMissing, by ="ID", all.x = TRUE) # add the new values to the origingal dataset
+tmp$ID <- as.integer(tmp$ID) # change class
+
+## replace the missing values only with the respective imputed data based on mean values by interval
+for (i in 1:nrow(tmp)){
+        if (is.na(tmp[i,2])){
+                tmp[i,2]<- tmp[i,6]
+        }
+}
+
+## 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+tmp <- tmp[order(tmp$ID),] # order the data 
+rownames(tmp) <- tmp$ID # change the rownames
+newData <- tmp[, c(1:4)] # select columns of interest
+rm(tmp) # remove temporary variable
+newData <- newData[, -c(1)] # remove unnecessary column
+names(newData) <- c("steps", "date", "interval") # rename colnames of the new dataset
+
+
+sum(is.na(newData$steps))  # check that there are no missing values
+
+## 4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+stepsTotalnew <- as.data.frame(with(newData, tapply(steps, date, sum)))
+names(stepsTotalnew) <- "Total_steps imputed data"
+hist(stepsTotalnew[,1], breaks = nrow(stepsTotalnew), col = "blue", main = "Total steps", xlab = "Number of steps per day")
+
+## save the plot as a separate file
+png(file="./total_steps_noNAs.png")
+hist(stepsTotalnew[,1], breaks = nrow(stepsTotalnew), col = "blue", main = "Total steps", xlab = "Number of steps per day")
+dev.off()
+
+stepsMeannew <- as.data.frame(with(newData, tapply(steps, date, mean)))
+data2new <- newData[newData$steps>0,]
+stepsMediannew <- as.data.frame(with(data2new, tapply(steps, date, median)))
+
+par(mfrow = c(2,2), mar = c(2, 4, 2, 1))
+barplot(stepsMean[,1], main = "Total steps with NAs", ylab = "Mean per day")
+barplot(stepsMedian[,1], main = "Total steps with NAs", ylab = "Median per day")
+barplot(stepsMeannew[,1], main = "Total steps no NAs", ylab = "New Mean per day")
+barplot(stepsMediannew[,1], main = "Total steps no NAs", ylab = "New Median per day")
+
+## save the plot as a separate file
+png(file="./figures/compareData_with_without_NAs.png")
+par(mfrow = c(2,2), mar = c(2, 4, 2, 1))
+barplot(stepsMean[,1], main = "Total steps with NAs", ylab = "Mean per day")
+barplot(stepsMedian[,1], main = "Total steps with NAs", ylab = "Median per day")
+barplot(stepsMeannew[,1], main = "Total steps no NAs", ylab = "New Mean per day")
+barplot(stepsMediannew[,1], main = "Total steps no NAs", ylab = "New Median per day")
+dev.off()
+```
+
+The number of missing values is `r numberNA`.
+
+### Are there differences in activity patterns between weekdays and weekends?
+
+```{r, cache=TRUE}
+## 1. Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+weekdays <- weekdays(newData$date)
+
+## create a tag for each observational day
+dayTag <-rep(NA, length(weekdays))
+for(i in 1:length(weekdays)){
+        if (weekdays[i] %in% unique(weekdays)[1:5]){
+             dayTag[i] <- "weekday"   
+        } else {
+                dayTag[i] <- "weekend"
+        }
+}
+
+newData$dayTag <- dayTag # assign the tag to a new column of the dataset
+
+## subset the dataset based on the daytag
+weekdayData <- subset(newData, dayTag =="weekday")
+weekendData <- subset(newData, dayTag =="weekend")
+
+## calculate the mean for both subsetted data
+meanWeekday <- as.data.frame(with(weekdayData, tapply(steps, interval, mean)))
+names(meanWeekday) <- "averageByInterval"
+meanWeekday$Interval <- unique(newData$interval)
+meanWeekday$dayTag <- rep("weekday")
+
+meanWeekend <- as.data.frame(with(weekendData, tapply(steps, interval, mean)))
+names(meanWeekend) <- "averageByInterval"
+meanWeekend$Interval <- unique(newData$interval)
+meanWeekend$dayTag <- rep("weekend")
+
+## combine the two calculated sets of means by interval
+meanByInterval <- rbind(meanWeekday, meanWeekend)
+
+## 1. Make a panel plot containing a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+library(lattice)
+xyplot(averageByInterval ~ Interval | dayTag, meanByInterval, type ="l", ylab = "Number of steps", layout = c(1,2))
+
+## save the plot as a separate file
+png(file="./figures/weekend_weekdays_activity.png")
+xyplot(averageByInterval ~ Interval | dayTag, meanByInterval, type ="l", ylab = "Number of steps", layout = c(1,2))
+dev.off()
+```
+
