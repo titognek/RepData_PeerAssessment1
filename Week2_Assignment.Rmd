@@ -21,7 +21,7 @@ data$date <- as.Date(data$date) # transform the date variable to class Date
 ### What is mean total number of steps taken per day?
 ```{r histogram}
 stepsTotal <- as.data.frame(with(data, tapply(steps, date, sum, na.rm = TRUE))) # calculate the total number of steps for each day
-names(stepsTotal) <- "Total_steps" # change the name
+names(stepsTotal) <- "Total_steps" # change the colname to a more legible name
 
 ## 1. Make a histogram of the total number of steps taken each day
 hist(stepsTotal[,1], breaks = nrow(stepsTotal), col = "blue", main = "Total steps", xlab = "Number of steps per day") 
@@ -38,6 +38,7 @@ dev.off()
 
 
 ## 2. Calculate and report the **mean** and **median** total number of steps taken per day
+## the mean and median is calculated for each day and values are plotted with bargraphs
 stepsMean <- as.data.frame(with(data, tapply(steps, date, mean, na.rm = TRUE)))
 data2 <- data[data$steps>0,]
 stepsMedian <- as.data.frame(with(data2, tapply(steps, date, median, na.rm = TRUE)))
@@ -46,7 +47,7 @@ par(mfrow = c(1,2), mar = c(2, 4, 2, 1))
 barplot(stepsMean[,1], main = "Total steps per day", ylab = "Mean")
 barplot(stepsMedian[,1], main = "Total steps per day", ylab = "Median")
 
-## save the plot as a separate file
+## save the plots as a separate file
 png(file="./figures/mean_median_total_steps.png")
 par(mfrow = c(1,2), mar = c(2, 4, 2, 1))
 barplot(stepsMean[,1], main = "Total steps per day", ylab = "Mean")
@@ -76,15 +77,18 @@ The 5-minute interval that contains the maximum number of steps is 835.
 
 ### Imputing missing values
 
+I am using a very simple stategy by assigning the mean values by interval calculated above to the respective missing values.
+
 ```{r}
 ## 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
 numberNA <- sum(is.na(data$steps)) 
 
-## 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
-data$ID <- rownames(data) # change rownames
-meanAlldays$interval <- rownames(meanAlldays) # change rownames
+## 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. 
+
+data$ID <- rownames(data) # change to rownames IDs
+meanAlldays$interval <- rownames(meanAlldays) # change to rownames IDs
 missing <- data[is.na(data$steps),] # find the rows with missing values
-fillMissing <- merge(meanAlldays, missing, by ="interval") # add the mean values per interval to each missing rows by merging
+fillMissing <- merge(meanAlldays, missing, by ="interval") # add the mean values per interval to each missing rows by merging by interval
 tmp <- merge(data, fillMissing, by ="ID", all.x = TRUE) # add the new values to the origingal dataset
 tmp$ID <- as.integer(tmp$ID) # change class
 
@@ -138,6 +142,8 @@ dev.off()
 ```
 
 The number of missing values is `r numberNA`.
+
+The imputation seems to have worked well and I dont see a signigficant change in the pattern of mean and median total steps per day between datasets with and without NAs.
 
 ### Are there differences in activity patterns between weekdays and weekends?
 
